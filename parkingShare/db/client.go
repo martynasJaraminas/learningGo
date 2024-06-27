@@ -16,7 +16,7 @@ type Client struct {
 	Dot *dotsql.DotSql
 }
 
-func NewClient() (*Client, error) {
+func NewClient() *Client {
 	user := os.Getenv("POSTGRES_USER")
 	password := os.Getenv("POSTGRES_PASSWORD")
 	dbName := os.Getenv("POSTGRES_DB")
@@ -29,10 +29,9 @@ func NewClient() (*Client, error) {
 
 	// Load queries
 	dot, err := dotsql.LoadFromFile("./db/sql/locations/queries.sql")
-
 	checkErr(err)
 
-	return &Client{Db: client, Dot: dot}, nil
+	return &Client{Db: client, Dot: dot}
 }
 
 func (client *Client) Close() {

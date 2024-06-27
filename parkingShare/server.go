@@ -25,11 +25,7 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	client, err := db.NewClient()
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	client := db.NewClient()
 	defer client.Close()
 
 	client.InitTables()
