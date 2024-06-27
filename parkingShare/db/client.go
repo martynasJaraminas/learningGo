@@ -5,22 +5,15 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/gommon/log"
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/qustavo/dotsql"
 )
 
 type Client struct {
-	db *sql.DB
-}
-
-// TODO: later move in to locations package?
-type Location struct {
-	id         string
-	name       string
-	paringLots []string
-	address    sql.NullString
+	Db  *sql.DB
+	Dot *dotsql.DotSql
 }
 
 func NewClient() (*Client, error) {
@@ -32,24 +25,23 @@ func NewClient() (*Client, error) {
 
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable", user, password, dbName, host, port)
 	client, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
+	checkErr(err)
 
-	return &Client{db: client}, nil
+	// Load queries
+	dot, err := dotsql.LoadFromFile("./db/sql/locations/queries.sql")
+
+	checkErr(err)
+
+	return &Client{Db: client, Dot: dot}, nil
 }
 
 func (client *Client) Close() {
-	client.db.Close()
+	client.Db.Close()
 }
 
 func (client *Client) InitTables() error {
 	log.Info("Creating tables")
-
-	dot, err := dotsql.LoadFromFile("./db/queries.sql")
-	checkErr(err)
-
-	res, err := dot.Exec(client.db, "create-locations-table")
+	res, err := client.Dot.Exec(client.Db, "create-locations-table")
 
 	if err != nil {
 		log.Error(err)
@@ -60,27 +52,22 @@ func (client *Client) InitTables() error {
 	return nil
 }
 
-func (client *Client) GetLocations() []Location {
-	dot, err := dotsql.LoadFromFile("./db/queries.sql")
+func Query[T any](dot *dotsql.DotSql, db *sql.DB, query string) ([]T, error) {
+	res, err := dot.Query(db, query)
 	checkErr(err)
 
-	rows, err := dot.Query(client.db, "get-locations")
-	checkErr(err)
-	defer rows.Close()
+	var result []T
 
-	var locations []Location
-
-	for rows.Next() {
-		var location Location
-		// TODO: can this be a dynamic based on struct?
-		if err := rows.Scan(&location.id, &location.name, pq.Array(&location.paringLots), &location.address); err != nil {
+	for res.Next() {
+		var resultLocal T
+		if err := sqlx.StructScan(res, &result); err != nil {
 			log.Error(err)
-			continue
+			return nil, err
 		}
-		locations = append(locations, location)
+		result = append(result, resultLocal)
 	}
 
-	return locations
+	return result, nil
 }
 
 func checkErr(err error) {
