@@ -8,4 +8,7 @@ CREATE TABLE IF NOT EXISTS locations (
 
 
 -- name: get-locations
-SELECT * FROM locations;
+SELECT id, name, parking_lots, address FROM locations;
+
+--name: get-location-by-id
+SELECT * FROM LOCATIONS WHERE ID = ? ;

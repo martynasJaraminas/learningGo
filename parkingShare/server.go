@@ -42,13 +42,18 @@ func main() {
 			return c.JSON(http.StatusInternalServerError, err)
 		}
 		return c.JSON(http.StatusOK, result)
-		// return c.JSON(http.StatusOK, client.GetLocations())
 	})
 
 	// e.GET("/locations/:id", func(c echo.Context) error {
-	// 	return c.JSON(http.StatusOK, client.GetLocation(id))
+	// 	result, err := db.QuerySingle[location.Location](client.Dot, client.Db, "get-location-by-id", c.Param("id"))
 
-	// }
+	// 	if err != nil {
+	// 		return c.JSON(http.StatusInternalServerError, err)
+
+	// 	}
+	// 	return c.JSON(http.StatusOK, result)
+
+	// })
 
 	port := os.Getenv("SERVER_PORT")
 	log.Print("Server is running on port: ", port)

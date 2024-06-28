@@ -9,11 +9,12 @@ import (
 	"github.com/labstack/gommon/log"
 	_ "github.com/lib/pq"
 	"github.com/qustavo/dotsql"
+	"github.com/swithek/dotsqlx"
 )
 
 type Client struct {
-	Db  *sql.DB
-	Dot *dotsql.DotSql
+	Db  *sqlx.DB
+	Dot *dotsqlx.DotSqlx
 }
 
 func NewClient() *Client {
@@ -24,14 +25,16 @@ func NewClient() *Client {
 	port := os.Getenv("POSTGRES_PORT")
 
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable", user, password, dbName, host, port)
-	client, err := sql.Open("postgres", connStr)
+	client, err := sqlx.Connect("postgres", connStr)
 	checkErr(err)
 
 	// Load queries
 	dot, err := dotsql.LoadFromFile("./db/sql/locations/queries.sql")
 	checkErr(err)
 
-	return &Client{Db: client, Dot: dot}
+	dotx := dotsqlx.Wrap(dot)
+
+	return &Client{Db: client, Dot: dotx}
 }
 
 func (client *Client) Close() {
@@ -51,19 +54,30 @@ func (client *Client) InitTables() error {
 	return nil
 }
 
-func Query[T any](dot *dotsql.DotSql, db *sql.DB, query string) ([]T, error) {
-	res, err := dot.Query(db, query)
-	checkErr(err)
+func Query[T any](dotx *dotsqlx.DotSqlx, db *sqlx.DB, query string) ([]T, error) {
 
 	var result []T
 
-	for res.Next() {
-		var resultLocal T
+	if err := dotx.Select(db, &result, query); err != nil {
+		log.Error(err)
+		return nil, err
+
+	}
+
+	return result, nil
+}
+
+func QuerySingle[T any](dot *dotsql.DotSql, db *sql.DB, query string, param string) (T, error) {
+	res, err := dot.Query(db, query, param)
+	checkErr(err)
+
+	var result T
+
+	if res.Next() {
 		if err := sqlx.StructScan(res, &result); err != nil {
 			log.Error(err)
-			return nil, err
+			return result, err
 		}
-		result = append(result, resultLocal)
 	}
 
 	return result, nil
